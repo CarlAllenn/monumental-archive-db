@@ -171,7 +171,8 @@ jobs:
         with:
           egress-policy: block
           disable-sudo: true
-          # fulcio/rekor/tuf: cosign keyless. mirror.gcr.io: trivy's DB for
+          # fulcio/rekor/timestamp/tuf: cosign keyless (v3 bundles are
+          # RFC3161-timestamped). mirror.gcr.io: trivy's DB for
           # the report-only scan. The rest is the GitHub-owned cold-cache
           # set for the mise-pinned cosign + trivy.
           allowed-endpoints: >
@@ -188,6 +189,7 @@ jobs:
             raw.githubusercontent.com:443
             rekor.sigstore.dev:443
             release-assets.githubusercontent.com:443
+            timestamp.sigstore.dev:443
             tuf-repo-cdn.sigstore.dev:443
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
