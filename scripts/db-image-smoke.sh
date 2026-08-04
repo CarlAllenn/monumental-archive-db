@@ -18,9 +18,16 @@ trap 'docker rm -f "${container}" > /dev/null 2>&1 || true' EXIT
 
 docker run -d --name "${container}" -e POSTGRES_PASSWORD=smoke "${image}" > /dev/null
 
+# The official entrypoint starts postgres TWICE on a fresh volume (a
+# temporary init server, then the real one); pg_isready alone can catch
+# the temporary one and the next psql lands in the restart gap. Require
+# the second "ready to accept connections" in the log, then pg_isready.
 ready=false
 for _ in $(seq 1 60); do
-  if docker exec "${container}" pg_isready -U postgres > /dev/null 2>&1; then
+  starts=$(docker logs "${container}" 2>&1 \
+    | grep -c 'database system is ready to accept connections' || true)
+  if [[ ${starts} -ge 2 ]] \
+    && docker exec "${container}" pg_isready -U postgres > /dev/null 2>&1; then
     ready=true
     break
   fi
