@@ -24,6 +24,8 @@ name: ci
     # without commits; this catches new CVEs during quiet weeks. Offset
     # from publish.yml (09:00) so the runs don't contend.
     - cron: 0 6 * * 1
+  # Manual kick: gate validation, post-fix re-runs.
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -40,7 +42,7 @@ jobs:
     name: ci
     # Skip on push to main: this exact content just went green on the PR.
     # Still runs on pull_request (the required check), on renovate/**
-    # pushes (branch-automerge), and on schedule.
+    # pushes (branch-automerge), on schedule, and on dispatch.
     if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
