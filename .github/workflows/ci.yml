@@ -55,6 +55,11 @@ jobs:
           # repositories; release-assets serves the edtf tarballs; buildkit's
           # network namespace may not be governed by harden-runner at all —
           # allowlisted anyway rather than relying on that being true.
+          # Unioned with iiif-server's v0.1.0 audit-derived list (its #69):
+          # both Docker Hub CDN legs, and tmaproduction.blob.core.windows.net
+          # (serves the bundles `gh attestation verify` fetches — scan:edtf).
+          # Per that issue's rule: do not prune by inspection; re-derive from
+          # an audit run or leave it alone.
           allowed-endpoints: >
             api.github.com:443
             apt.postgresql.org:80
@@ -77,6 +82,7 @@ jobs:
             registry-1.docker.io:443
             registry.npmjs.org:443
             release-assets.githubusercontent.com:443
+            tmaproduction.blob.core.windows.net:443
             tuf-repo-cdn.sigstore.dev:443
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
