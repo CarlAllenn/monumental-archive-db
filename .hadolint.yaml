@@ -1,0 +1,16 @@
+---
+# Canonical hadolint baseline — copy-template class (issue #8, 2026-07-27;
+# posture originated in monumental-archive, second adopter iiif-server).
+# Max enforcement: any finding of style severity or above fails, and inline
+# ignore pragmas are DISABLED — every exemption is config-level, here, with
+# its reason. Per-repo ignores append below the canonical ones.
+failure-threshold: style
+disable-ignore-pragma: true
+trustedRegistries:
+  - docker.io
+strict-labels: false
+# Canonical ignores (each with its reason):
+ignored:
+  # DL3005 forbids apt-get upgrade stylistically; keeping base OS security
+  # patches current outranks it for images rebuilt on schedule.
+  - DL3005

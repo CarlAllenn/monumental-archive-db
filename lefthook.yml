@@ -1,0 +1,30 @@
+---
+# Git hooks: every commit passes the universal lint layer
+# (shfmt/shellcheck/yamllint/taplo/markdownlint/codespell/ec/actionlint/
+# zizmor/gitleaks + conventional-commit enforcement), consumed LIVE from
+# renovate-config via remotes: — decision record and consumer skeleton in
+# templates/lefthook/README.md there. We comply with the tools; fixing
+# output is never optional. Personal overrides go in lefthook-local.yml
+# (gitignored).
+
+remotes:
+  - git_url: https://github.com/CarlAllenn/renovate-config
+    refetch_frequency: 24h
+    configs:
+      - lefthook/universal.yml
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: hadolint
+      glob: Dockerfile
+      run: hadolint Dockerfile
+
+pre-push:
+  jobs:
+    - name: image-smoke
+      # Only when the image's inputs actually changed: build the candidate
+      # and prove the extensions load before the push burns a CI run.
+      # Early warning only — the binding gate is `task ci` in CI.
+      glob: "{Dockerfile,scripts/db-image-smoke.sh}"
+      run: task build smoke

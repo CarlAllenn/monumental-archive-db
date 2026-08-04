@@ -1,0 +1,37 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>CarlAllenn/renovate-config"],
+  "customManagers": [
+    {
+      "description": "Generic: '# renovate:' comments above Dockerfile ARG version pins",
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)Dockerfile$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\nARG \\w+_VERSION=(?<currentValue>\\S+)"
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Postgres majors need a deliberate decision (a new major means a data-directory upgrade for every consumer)",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "PGDG apt pins. The deb datasource requires an explicit index URL (suite/components/binaryArch); it is context for Renovate, not an endpoint it calls. binaryArch=amd64 picks the index to read versions from — PGDG publishes the same version string for every architecture, and the Dockerfile pin is arch-independent.",
+      "matchDatasources": ["deb"],
+      "matchPackageNames": ["postgresql-18-postgis-3", "postgresql-18-pgaudit"],
+      "registryUrls": [
+        "https://apt.postgresql.org/pub/repos/apt?suite=trixie-pgdg&components=main&binaryArch=amd64"
+      ]
+    },
+    {
+      "description": "edtf-postgres publishes an umbrella tag AND five per-crate tags at the same version; anchoring extractVersion on the edtf-postgres tag stops an edtf-wasm release from bumping the extension. The two SHA256 args are updated manually in the same PR; `task scan:edtf` fails in CI until they match the attested SHA256SUMS. First-party (published by this owner), so the shared preset's cooldown — which guards against upstream account takeover — is waived.",
+      "matchDepNames": ["CarlAllenn/edtf"],
+      "extractVersion": "^edtf-postgres-v(?<version>.*)$",
+      "minimumReleaseAge": "0 days"
+    }
+  ]
+}
