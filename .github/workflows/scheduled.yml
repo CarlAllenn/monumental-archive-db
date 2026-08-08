@@ -25,6 +25,78 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  scorecard:
+    name: OpenSSF Scorecard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # analyze the repository
+      id-token: write # OIDC: proves to the OpenSSF API these results are ours
+    steps:
+      # Inherited wholesale from iiif-server's derivation run of 2026-08-08
+      # (its #106), NOT derived here and NOT pruned: the check set
+      # scorecard-action runs is the same everywhere, so the hosts it
+      # resolves are a property of the action rather than of the repo. Per
+      # the canon's rule (iiif-server#69) an allowlist is re-derived from an
+      # audit run or left alone — never trimmed by inspection — so copying
+      # the superset is the safe direction. Confirm against the first live
+      # run here before treating it as derived for this repo.
+      #
+      # Each host maps to a check — api.osv.dev and api.deps.dev to
+      # Vulnerabilities, www.bestpractices.dev to CII-Best-Practices,
+      # oss-fuzz-build-logs.storage.googleapis.com to Fuzzing,
+      # codeload.github.com to the clone, the sigstore hosts and
+      # api.scorecard.dev to publish_results — but that mapping is
+      # after-the-fact reading, not how the list was produced.
+      #
+      # *.actions.githubusercontent.com is the OIDC exchange publish_results
+      # signs with: the action resolves run-actions-N-azure-REGION and N
+      # rotates per run, so the literal host is a latent failure. It also
+      # covers results-receiver. *.blob.core.windows.net is the results
+      # upload and *.githubapp.com the hosted-compute watchdog.
+      #
+      # ghcr.io is not missing: scorecard-action is a container action, so
+      # its `docker pull` finishes in the prepare-actions phase before this
+      # step exists. Nothing in the policy window touches a registry.
+      - uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          disable-sudo: true
+          allowed-endpoints: >
+            *.actions.githubusercontent.com:443
+            *.blob.core.windows.net:443
+            *.githubapp.com:443
+            api.deps.dev:443
+            api.github.com:443
+            api.osv.dev:443
+            api.scorecard.dev:443
+            codeload.github.com:443
+            fulcio.sigstore.dev:443
+            github.com:443
+            oss-fuzz-build-logs.storage.googleapis.com:443
+            rekor.sigstore.dev:443
+            tuf-repo-cdn.sigstore.dev:443
+            www.bestpractices.dev:443
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # publish_results puts the score behind the README badge and replaces
+      # the OpenSSF team's own scan of this repo with our run — this repo is
+      # not in the public scan set at all until it first runs. Scheduled runs
+      # only ever execute on the default branch, which is what publishing
+      # requires. Four checks are structurally unreachable here and are not
+      # defects to chase: Code-Review and Contributors (single maintainer),
+      # Maintained (until the repo is 90 days old, so ~2026-11-02), and
+      # Fuzzing (no parser code in an image-assembly repo). Signed-Releases
+      # scores N/A rather than zero — a push-and-cron image publisher has no
+      # releases, and inventing them to feed the check is not on the table.
+      - uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: results.json
+          results_format: json
+          publish_results: true
+
   zizmor-online:
     name: zizmor online audits
     runs-on: ubuntu-latest
