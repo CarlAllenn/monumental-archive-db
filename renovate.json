@@ -28,9 +28,9 @@
       ]
     },
     {
-      "description": "edtf-postgres publishes an umbrella tag AND five per-crate tags at the same version; anchoring extractVersion on the edtf-postgres tag stops an edtf-wasm release from bumping the extension. The two SHA256 args are updated manually in the same PR; `task scan:edtf` fails in CI until they match the attested SHA256SUMS. First-party (published by this owner), so the shared preset's cooldown — which guards against upstream account takeover — is waived.",
-      "matchDepNames": ["CarlAllenn/edtf"],
-      "extractVersion": "^edtf-postgres-v(?<version>.*)$",
+      "description": "edtf-postgres is consumed as an OCI build stage, so the native Dockerfile manager tracks it and bumps tag and digest in one PR — nothing here is hand-edited, which is why this replaced the release-tarball pin and its two per-arch SHA256 args. Tags are <version>-pg<major>; Renovate's docker versioning holds the -pg18 suffix constant, so moving postgres majors stays the deliberate decision the rule above makes it rather than arriving inside an extension bump. Sibling crates (edtf-wasm and friends) release at the same version but publish no image, so they can no longer bump this at all. First-party (published by this owner), so the shared preset's cooldown — which guards against upstream account takeover — is waived; `task scan:edtf` re-proves the attestation against whatever digest the bump lands on.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/carlallenn/edtf-postgres"],
       "minimumReleaseAge": "0 days"
     }
   ]

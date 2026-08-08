@@ -145,7 +145,7 @@ tasks:
       - trivy fs --config trivy.yaml .
 
   scan:edtf:
-    desc: Verify the pinned edtf checksums against the attested release
+    desc: Verify the pinned edtf image digest against the publisher's attestation
     cmds:
       - bash scripts/check-edtf-attestation.sh
 

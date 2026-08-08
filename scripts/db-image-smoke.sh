@@ -100,8 +100,17 @@ edtf_bounds=$(q "select edtf_min('198X') || '|' || edtf_max('198X')")
 assert "edtf bounds are correct" "1980-01-01|1989-12-31" "${edtf_bounds}"
 
 # The extension version must be the one the Dockerfile pins, or the image
-# silently shipped something else.
-expected_edtf=$(sed -n 's/^ARG EDTF_POSTGRES_VERSION=\(.*\)$/\1/p' Dockerfile | head -1)
+# silently shipped something else. Read from the tag of the edtf build
+# stage (`:<version>-pg<major>@sha256:...`) — the digest beside it is what
+# actually fixes the bytes, so this reads the human-facing half of the same
+# pin and would catch a tag and digest that disagree.
+expected_edtf=$(sed -n \
+  's|^FROM ghcr\.io/carlallenn/edtf-postgres:\(.*\)-pg[0-9]*@sha256:.* AS edtf$|\1|p' \
+  Dockerfile | head -1)
+if [[ -z ${expected_edtf} ]]; then
+  echo "db-smoke: no version in the edtf stage's tag in Dockerfile" >&2
+  exit 1
+fi
 actual_edtf=$(q "select extversion from pg_extension where extname = 'edtf_postgres'")
 assert "edtf_postgres version is the pinned one" "${expected_edtf}" "${actual_edtf}"
 

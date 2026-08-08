@@ -46,12 +46,12 @@ Three rules follow, and they are the reusable part:
    resolves them fresh from `trixie-security` with every deliberate pin
    intact. Under a community base a rebuild refreshed nothing; under this
    arrangement it is a real remediation.
-3. **A checksum proves the download did not change; an attestation proves
-   it is the right download.** The edtf-postgres tarballs are pinned by
-   hash *and* verified against the publisher's attestation
-   (`scripts/check-edtf-attestation.sh`), and CI asserts the pinned hash
-   is the attested one. A hash alone is a fail-closed check on the wrong
-   question: an edit changing the URL and the hash together satisfies it.
+3. **A digest proves the bytes did not change; an attestation proves they
+   are the right bytes.** edtf-postgres is pinned by digest *and* verified
+   against the publisher's attestation (`scripts/check-edtf-attestation.sh`),
+   and CI asserts the attestation covers the pinned digest. A digest alone
+   is a fail-closed check on the wrong question: an edit changing the
+   reference and its digest together satisfies it.
 
 Publishing follows from the same posture: each architecture is built on
 its own hardware (no QEMU), boots and proves its extensions load before
@@ -81,3 +81,15 @@ not worth making.
 **Revisit triggers.** Docker Official Images beginning to publish
 signatures. A second database image appearing in this family, at which
 point per-extension OCI images' fleet-shaped economics start to apply.
+
+## Amendment, 2026-08-08
+
+edtf-postgres began publishing an OCI image, and this image now consumes
+that instead of the release tarball — rule 3's mechanism changed from a
+pair of per-arch `ADD --checksum` hashes to one manifest-index digest, and
+the wording above was updated to match. The decision itself is unchanged,
+and the change is a test of it: that image is `postgres:18-trixie` with
+the extension installed, so adopting it as a *base* would have reproduced
+the `postgis/postgis` failure exactly — an apt layer resolved at someone
+else's build time, refreshable only by their next release. It is consumed
+as a build stage, two globbed paths wide, and the base stays ours.

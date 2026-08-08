@@ -12,44 +12,34 @@
 # The official image is also genuinely multi-arch; postgis/postgis
 # publishes amd64 only.
 
-# renovate: datasource=github-releases depName=CarlAllenn/edtf
-ARG EDTF_POSTGRES_VERSION=1.1.2
-# Checksums are pinned per architecture and verified by BuildKit before the
-# bytes are used (fail-closed: a wrong hash aborts the build with "digest
-# mismatch"). Deliberately NOT Renovate-tracked:
-# scripts/check-edtf-attestation.sh proves — in CI, against the release's
-# GitHub attestation — that these are the values edtf's own publish
-# workflow produced. A pinned hash alone would only prove the download did
-# not change; the attestation is what proves it authentic.
-ARG EDTF_SHA256_AMD64=837281408b9b2e75fe0cb5fe933183db3355ba2f733af029c9a4aca017ee3ad9
-ARG EDTF_SHA256_ARM64=a9870a844b591fa66a76f04b97bcf3ff51abe0c83e136a4bdf56af453b7e9389
-
 FROM postgres:18-trixie@sha256:3a82e1f56c8f0f5616a11103ac3d47e632c3938698946a7ad26da0df1334744a AS base
 
-# --- edtf-postgres: prebuilt, attested, checksum-verified ------------------
+# --- edtf-postgres: prebuilt, attested, digest-pinned ----------------------
 # EDTF validation as a native extension: the same edtf-core the archive's
-# web app runs via WASM, so the two layers can never diverge. Consumed as a
-# published artifact from CarlAllenn/edtf rather than compiled here — the
-# image compiles nothing, which is what makes a native arm64 build cheap.
+# web app runs via WASM, so the two layers can never diverge. Consumed as
+# the publisher's OCI image rather than compiled here — the image compiles
+# nothing, which is what makes a native arm64 build cheap.
 #
-# Both architectures are fetched and both checksums verified on every build,
-# whichever architecture is being built: the tarballs are ~3MB, this stage is
-# discarded, and it means a wrong checksum is caught even for the platform
-# this particular build is not producing. The extracted tree is exactly the
-# runtime paths, so the runtime stage copies it whole.
-FROM base AS edtf
-ARG TARGETARCH
-ARG EDTF_POSTGRES_VERSION
-ARG EDTF_SHA256_AMD64
-ARG EDTF_SHA256_ARM64
-ADD --checksum=sha256:${EDTF_SHA256_AMD64} \
-  https://github.com/CarlAllenn/edtf/releases/download/edtf-postgres-v${EDTF_POSTGRES_VERSION}/edtf_postgres-${EDTF_POSTGRES_VERSION}-pg18-linux-amd64.tar.gz \
-  /tmp/edtf-amd64.tar.gz
-ADD --checksum=sha256:${EDTF_SHA256_ARM64} \
-  https://github.com/CarlAllenn/edtf/releases/download/edtf-postgres-v${EDTF_POSTGRES_VERSION}/edtf_postgres-${EDTF_POSTGRES_VERSION}-pg18-linux-arm64.tar.gz \
-  /tmp/edtf-arm64.tar.gz
-RUN mkdir -p /pkgroot \
-  && tar xzf "/tmp/edtf-${TARGETARCH}.tar.gz" -C /pkgroot
+# A BUILD STAGE, never our base. This image IS postgres:18-trixie with the
+# extension installed, so taking it as a base would put the OS packages
+# that carry CVEs in a layer frozen at edtf's build time and refreshable
+# only by an edtf release — the exact failure
+# docs/decisions/0001-own-the-installation.md was written about. Copying
+# two paths out of a stage receives none of that image's base layers, so
+# the apt layer below stays ours to refresh on the weekly rebuild.
+#
+# Pinned by manifest-INDEX digest, which commits to both the amd64 and the
+# arm64 manifest: one pin fixes the bytes for both architectures whichever
+# one is being built, so the "a wrong pin is caught even for the platform
+# this build is not producing" property the two per-arch tarball checksums
+# used to provide now holds by construction. BuildKit is fail-closed on
+# mismatch, and Renovate's native Dockerfile manager bumps tag and digest
+# together — the checksums this replaced had to be hand-edited.
+# scripts/check-edtf-attestation.sh proves in CI that this digest carries
+# GitHub-attested provenance naming edtf's own publish workflow. Both facts
+# are needed: the digest proves the bytes did not change, the attestation
+# proves they are the right bytes.
+FROM ghcr.io/carlallenn/edtf-postgres:1.2.3-pg18@sha256:4ee81e447e122deeb6c7361ad48d33a518a630d116318e6816f286b06c33b0e8 AS edtf
 
 # --- runtime ---------------------------------------------------------------
 FROM base
@@ -72,7 +62,14 @@ RUN apt-get update \
     "postgresql-18-pgaudit=${PGAUDIT_VERSION}" \
   && rm -rf /var/lib/apt/lists/*
 
-COPY --from=edtf /pkgroot/ /
+# Only the extension itself crosses the stage boundary. Globbed rather than
+# copying /usr/share/postgresql/18/extension/ wholesale (the form upstream's
+# README suggests): that directory in the edtf image also holds the control
+# files of ITS base image, and copying it whole would silently replace this
+# base's copies with those — inheriting files we did not install, by the
+# back door, in the one stage that exists to avoid exactly that.
+COPY --from=edtf /usr/lib/postgresql/18/lib/edtf_postgres.so /usr/lib/postgresql/18/lib/
+COPY --from=edtf /usr/share/postgresql/18/extension/edtf_postgres* /usr/share/postgresql/18/extension/
 
 # gosu exists to drop root→postgres; this image starts as postgres (USER
 # below), so it's dead code — and it ships with stale-Go-stdlib CVEs. Gone.
