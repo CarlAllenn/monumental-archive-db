@@ -54,9 +54,12 @@ jobs:
           egress-policy: block
           disable-sudo: true
           # apt is fetched over plain http (port 80) by the PGDG and Debian
-          # repositories; release-assets serves the edtf tarballs; buildkit's
-          # network namespace may not be governed by harden-runner at all —
-          # allowlisted anyway rather than relying on that being true.
+          # repositories; ghcr.io + pkg-containers (its blob CDN, which the
+          # registry 307s to) serve the edtf-postgres build stage — this job
+          # pushes nothing, so it reached GHCR for the first time when that
+          # stage replaced the release tarball. buildkit's network namespace
+          # may not be governed by harden-runner at all — allowlisted anyway
+          # rather than relying on that being true.
           # Unioned with iiif-server's v0.1.0 audit-derived list (its #69):
           # both Docker Hub CDN legs, and tmaproduction.blob.core.windows.net
           # (serves the bundles `gh attestation verify` fetches — scan:edtf).
@@ -71,12 +74,14 @@ jobs:
             deb.debian.org:80
             deb.debian.org:443
             files.pythonhosted.org:443
+            ghcr.io:443
             github.com:443
             mirror.gcr.io:443
             mise-versions.jdx.dev:443
             mise.jdx.dev:443
             nodejs.org:443
             objects.githubusercontent.com:443
+            pkg-containers.githubusercontent.com:443
             production.cloudflare.docker.com:443
             production.cloudfront.docker.com:443
             pypi.org:443
@@ -116,6 +121,6 @@ jobs:
 
       - run: task ci
         env:
-          # task scan:edtf calls `gh release download` / `gh attestation
-          # verify`, which need a token even for a public repo.
+          # task scan:edtf calls `gh attestation verify`, which needs a
+          # token even for a public repo.
           GH_TOKEN: ${{ github.token }}

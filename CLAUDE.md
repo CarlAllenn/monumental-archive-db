@@ -32,13 +32,17 @@ deliberately never fingerprinted — their inputs (vuln DBs, attestation state) 
   PostGIS/pgaudit are installed here from PGDG at our build time — never inherited from an image like
   `postgis/postgis` — so their OS dependencies resolve fresh from `trixie-security`. A weekly cache-free scheduled
   rebuild caps exposure at seven days.
-- **edtf_postgres supply chain**: consumed as a prebuilt release artifact from `CarlAllenn/edtf` (nothing is
-  compiled in this image). Its checksums in the Dockerfile are pinned per-arch, verified fail-closed by BuildKit's
-  `ADD --checksum`, and deliberately NOT Renovate-tracked — `scripts/check-edtf-attestation.sh` proves in CI that
-  the pinned hashes appear in the release's GitHub-attested SHA256SUMS. Both facts are needed; neither alone
-  suffices. Never bump the edtf pin/checksums without keeping that gate green.
-- **Renovate pin convention**: versions live in `ARG *_VERSION=` lines with a `# renovate:` comment above them —
-  an inline version in an apt line would silently lose Renovate coverage. Policy canon lives in
+- **edtf_postgres supply chain**: consumed as `ghcr.io/carlallenn/edtf-postgres:<version>-pg18`, pinned by
+  manifest-index digest (nothing is compiled in this image). That image is *postgres:18-trixie plus the
+  extension*, so it is a **build stage only** — `FROM`-ing it as our base would inherit an apt layer we cannot
+  refresh and break "own the installation" above. The runtime stage globs `edtf_postgres*` out of the two
+  extension paths rather than copying the extension directory wholesale, so none of its base files cross over.
+  The digest is fail-closed in BuildKit; `scripts/check-edtf-attestation.sh` proves in CI that the *same* digest
+  carries GitHub-attested provenance naming edtf's publish workflow. Both facts are needed; neither alone
+  suffices. Never bump the edtf pin without keeping that gate green.
+- **Renovate pin convention**: apt versions live in `ARG *_VERSION=` lines with a `# renovate:` comment above
+  them — an inline version in an apt line would silently lose Renovate coverage. Image pins need none of that:
+  the native Dockerfile manager reads `FROM` lines and bumps tag and digest together. Policy canon lives in
   `CarlAllenn/renovate-config` (also the source of the lefthook remote config and Taskfile/trivy templates —
   marked "do not edit locally").
 - **Baked server config**: `CMD` carries `shared_preload_libraries=pg_stat_statements,pgaudit` and
