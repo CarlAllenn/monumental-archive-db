@@ -22,12 +22,14 @@ ghcr.io/carlallenn/monumental-archive-db
   anything is pushed; after the manifest exists, the published bytes are
   pulled back by digest and proved again before signing.
 - **Signed.** The manifest is cosign-signed keylessly; the certificate
-  identity is this repository's publish workflow and nothing weaker:
+  identity is this repository's publish workflow *on `main`*, and nothing
+  weaker — the ref is part of the pattern, so a signature minted from any
+  other ref does not verify:
 
   ```sh
   cosign verify ghcr.io/carlallenn/monumental-archive-db@<digest> \
     --certificate-identity-regexp \
-      '^https://github.com/CarlAllenn/monumental-archive-db/\.github/workflows/publish\.yml@' \
+      '^https://github.com/CarlAllenn/monumental-archive-db/\.github/workflows/publish\.yml@refs/heads/main$' \
     --certificate-oidc-issuer https://token.actions.githubusercontent.com
   ```
 

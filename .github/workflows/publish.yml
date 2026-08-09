@@ -140,7 +140,16 @@ jobs:
         with:
           context: .
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
-          provenance: true
+          # mode=max, not `true` — `true` resolves to mode=min, which
+          # records no materials, so the resolved base image digest appears
+          # nowhere in the attestation and "which base did this image ship
+          # on?" becomes unanswerable after the fact. That question is the
+          # whole point here: the weekly rebuild exists to move the OS
+          # layer, and an attestation that cannot say which layer shipped
+          # cannot evidence that it moved. Safe because max embeds the full
+          # input set and this build's inputs are non-secret — no build-args
+          # are passed, so it captures the Dockerfile's own version pins.
+          provenance: mode=max
           sbom: true
 
       - name: Record the digest
@@ -280,11 +289,19 @@ jobs:
       # Verify the way a stranger would, immediately: a signing step that
       # succeeded is not the same as a signature that verifies against the
       # identity consumers will pin.
+      #
+      # The regexp is anchored through the ref (`@refs/heads/main$`), which
+      # is the push-and-cron convention — a publisher whose only legitimate
+      # publish path is main. Ending the pattern at `publish\.yml@` would
+      # accept this workflow run from ANY ref, so a branch or tag someone
+      # could push would mint signatures indistinguishable from ours.
+      # Consumers pin this exact string; it is also in README.md and
+      # SECURITY.md, and all three must move together.
       - name: Verify the signature as a consumer would
         env:
           DIGEST: ${{ steps.manifest.outputs.digest }}
         run: |
           cosign verify "${IMAGE}@${DIGEST}" \
             --certificate-identity-regexp \
-              '^https://github.com/CarlAllenn/monumental-archive-db/\.github/workflows/publish\.yml@' \
+              '^https://github.com/CarlAllenn/monumental-archive-db/\.github/workflows/publish\.yml@refs/heads/main$' \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com
