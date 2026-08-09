@@ -67,8 +67,24 @@ The OS layer under PostGIS cannot be pinned by anyone: PostGIS's
 transitive Debian dependencies resolve at build time. So remediation here
 is **a scheduled cache-free rebuild**, weekly, which re-resolves that layer
 fresh from `trixie-security` with every deliberate pin intact. Worst-case
-exposure on an OS-layer CVE is therefore seven days from the fix landing in
+exposure on a CVE in **the packages this image installs, and their
+dependency closure** is therefore seven days from the fix landing in
 Debian, without anyone filing anything.
+
+Packages inherited from the base image have a different clock, and it is
+worth being precise rather than claiming the shorter number for both.
+`FROM postgres:18-trixie` is pinned by digest, so a cache-free rebuild
+re-fetches those layers byte-for-byte identically — the weekly rebuild does
+not move them. They move when the official image republishes and Renovate
+bumps our base digest. That is usually quick, but it is a different
+mechanism with a different failure mode: the weekly rebuild cannot silently
+stall, whereas a base-digest bump can sit unmerged.
+
+This distinction is narrower than it sounds, because the packages that
+motivated the whole design are on the seven-day clock. `libexpat1` and
+`libnss3` — the ones that were once frozen at versions carrying 22 CVEs —
+are absent from the base and installed here, precisely so that they are
+ours to refresh.
 
 The reasoning is
 [docs/decisions/0001-own-the-installation.md](docs/decisions/0001-own-the-installation.md);
