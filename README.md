@@ -72,5 +72,6 @@ image gate (all severities, `--ignore-unfixed`). Policy canon lives in
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) (how to
 contribute, the enforced coding standard, DCO),
 [GOVERNANCE.md](GOVERNANCE.md) (decision-making and continuity), the
-[roadmap](docs/roadmap.md), the [security policy](SECURITY.md) and the
-[security assurance case](docs/assurance-case.md).
+[roadmap](docs/roadmap.md), the [security policy](SECURITY.md), the
+[security assurance case](docs/assurance-case.md) and the
+[2026 security review](docs/security-review-2026.md).
