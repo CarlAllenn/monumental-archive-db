@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Carl Allen
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # The Monumental Archive's database image: official Postgres plus audited
 # extensions (PostGIS, pgaudit, edtf_postgres). Renovate manages the FROM
 # digest. Base is Debian 13 (trixie).

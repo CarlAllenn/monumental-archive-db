@@ -124,3 +124,37 @@ jobs:
           # task scan:edtf calls `gh attestation verify`, which needs a
           # token even for a public repo.
           GH_TOKEN: ${{ github.token }}
+
+  reuse:
+    name: REUSE compliance
+    # Same guard and same reason as the ci job above.
+    if: github.event_name != 'push' || github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      # Allowlist inherited from iiif-server, which runs this identical
+      # action-and-endpoint set green: the docker.io hosts are the action's
+      # own image pull, and Docker Hub picks between its cloudflare and
+      # cloudfront blob legs per request (same lore as publish.yml).
+      - uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          disable-sudo: true
+          allowed-endpoints: >
+            api.github.com:443
+            auth.docker.io:443
+            github.com:443
+            production.cloudflare.docker.com:443
+            production.cloudfront.docker.com:443
+            registry-1.docker.io:443
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # Every file carries SPDX licensing information: the Dockerfile and
+      # the two shell scripts via in-file headers, everything else via
+      # REUSE.toml's blanket annotation. Its own job rather than a `task
+      # lint` entry because the fsfe action is one docker pull with no
+      # toolchain to pin. Without this the badge would go red silently the
+      # first time a file landed uncovered.
+      - uses: fsfe/reuse-action@676e2d560c9a403aa252096d99fcab3e1132b0f5 # v6.0.0

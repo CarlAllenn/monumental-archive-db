@@ -1,0 +1,38 @@
+# REUSE Specification 3.3 (reuse.software/spec-3.3) licensing metadata.
+#
+# Every Covered File needs a copyright notice and an SPDX licence identifier.
+# The files that can hold a comment header carry theirs in-file — the two
+# shell scripts and the Dockerfile. Everything else is covered by the blanket
+# entry below, because those formats either cannot hold a comment (JSON) or
+# would be made worse by one (the docs, whose first line is their title).
+#
+# Not Covered Files, and so deliberately absent: LICENSES/, the root LICENSE,
+# .git/, anything gitignored, and this file.
+#
+# The licence text lives in LICENSES/AGPL-3.0-only.txt, which is a byte-exact
+# copy of the root LICENSE. Both are kept, and the duplication is the point:
+# LICENSES/ is what REUSE tooling reads, the root LICENSE is what GitHub's
+# licence detection and OpenSSF Scorecard read. Note also what is NOT here —
+# no LICENSE.md pointer file. A pointer outranks LICENSE-<name> in every
+# detector and contains no licence text, which measurably costs the Scorecard
+# License point (renovate-config templates/badges/README.md).
+#
+# No contact address on SPDX-PackageSupplier — the project publishes none,
+# and SECURITY.md routes reports through GitHub's advisory form instead.
+#
+# `reuse lint` runs as its own CI job (ci.yml), not from the local lint set:
+# the fsfe action is one docker pull with no toolchain to pin, which is the
+# house canon.
+version = 1
+SPDX-PackageName = "monumental-archive-db"
+SPDX-PackageSupplier = "Carl Allen"
+SPDX-PackageDownloadLocation = "https://github.com/CarlAllenn/monumental-archive-db"
+
+# precedence = "closest" is the spec default, stated explicitly because it is
+# the point of this entry: a file's own header always wins, and this blanket
+# applies only where there is none.
+[[annotations]]
+path = "**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 Carl Allen"
+SPDX-License-Identifier = "AGPL-3.0-only"
