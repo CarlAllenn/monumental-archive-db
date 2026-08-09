@@ -3,6 +3,7 @@
 [![ci](https://github.com/CarlAllenn/monumental-archive-db/actions/workflows/ci.yml/badge.svg)](https://github.com/CarlAllenn/monumental-archive-db/actions/workflows/ci.yml)
 [![publish](https://github.com/CarlAllenn/monumental-archive-db/actions/workflows/publish.yml/badge.svg)](https://github.com/CarlAllenn/monumental-archive-db/actions/workflows/publish.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/CarlAllenn/monumental-archive-db/badge)](https://scorecard.dev/viewer/?uri=github.com/CarlAllenn/monumental-archive-db)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13998/badge)](https://www.bestpractices.dev/projects/13998)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg)](LICENSE)
 
 The [Monumental Archive](https://github.com/CarlAllenn)'s PostgreSQL
