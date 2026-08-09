@@ -63,3 +63,9 @@ is the whole gate, identical locally and in CI — lints, trivy fs scan,
 the edtf attestation check, then build, smoke, and the canonical trivy
 image gate (all severities, `--ignore-unfixed`). Policy canon lives in
 [CarlAllenn/renovate-config](https://github.com/CarlAllenn/renovate-config).
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) (how to
+contribute, the enforced coding standard, DCO),
+[GOVERNANCE.md](GOVERNANCE.md) (decision-making and continuity), the
+[roadmap](docs/roadmap.md), the [security policy](SECURITY.md) and the
+[security assurance case](docs/assurance-case.md).
