@@ -1,0 +1,26 @@
+# Per-link escapes for lychee, one entry per line, each with its reason —
+# the convention lychee.toml states. lychee runs weekly in scheduled.yml
+# over the whole tree; anything listed here would otherwise turn that
+# workflow red every Monday for something that is not actually broken.
+#
+# Nothing goes in here to silence a genuinely dead link.
+#
+# Entries are REGEXES, not literal URLs — an unanchored entry matches by
+# prefix, so every pattern below is escaped and `$`-anchored to match
+# exactly one URL.
+
+# The FSF URL in the AGPL-3.0 header line, which appears verbatim in both
+# LICENSE and LICENSES/AGPL-3.0-only.txt. lychee began scanning it when the
+# REUSE layout added the .txt copy (#9) — the extensionless root LICENSE was
+# never scanned — and the weekly run went red on the first pass after.
+#
+# Not rot: the host answers 301 from an ordinary client. It fails only from
+# GitHub's hosted runners, with `received fatal alert: HandshakeFailure`,
+# which is a TLS negotiation problem between that runner image and fsf.org
+# and is not ours to fix at either end.
+#
+# It cannot be fixed at source either. The licence text is canonical — REUSE
+# checks LICENSES/*.txt against the upstream wording, and editing a licence
+# to satisfy a link checker is not a thing to do regardless. `$`-anchored,
+# so any other fsf.org link — one we actually wrote — would still be caught.
+^https://fsf\.org/$
