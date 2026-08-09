@@ -1,5 +1,10 @@
 # monumental-archive-db
 
+[![ci](https://github.com/CarlAllenn/monumental-archive-db/actions/workflows/ci.yml/badge.svg)](https://github.com/CarlAllenn/monumental-archive-db/actions/workflows/ci.yml)
+[![publish](https://github.com/CarlAllenn/monumental-archive-db/actions/workflows/publish.yml/badge.svg)](https://github.com/CarlAllenn/monumental-archive-db/actions/workflows/publish.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/CarlAllenn/monumental-archive-db/badge)](https://scorecard.dev/viewer/?uri=github.com/CarlAllenn/monumental-archive-db)
+[![license](https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg)](LICENSE)
+
 The [Monumental Archive](https://github.com/CarlAllenn)'s PostgreSQL
 image: official `postgres:18` (Debian trixie) plus exactly three audited
 extensions — [PostGIS](https://postgis.net/),
