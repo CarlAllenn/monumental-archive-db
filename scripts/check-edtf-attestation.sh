@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Carl Allen
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # edtf-postgres supply-chain gate. Closes the loop between the image digest
 # pinned in the Dockerfile and the publisher that claims to have produced
 # it. Two facts, and NEITHER is sufficient alone:
