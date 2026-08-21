@@ -3,9 +3,25 @@
 Why this project's security requirements are met: the threat model, the
 trust boundaries, the design argument, and the argument that common
 implementation weaknesses are countered. The security requirements
-themselves — what a user can and cannot expect — are stated in
-[SECURITY.md](../SECURITY.md); this document is the evidence that they
-hold.
+themselves — what a user can and cannot expect — are stated in the
+organisation's
+[SECURITY.md](https://github.com/monumental-archive/.github/blob/main/SECURITY.md),
+which is served to this repository as an org default; this document is
+the evidence that they hold.
+
+**State, 2026-08-21.** This repository joined `monumental-archive`
+(`.github#670`) and its private toolchain was deleted with the import.
+Enforcement — every linter, the secret scan, the workflow audit — is the
+organisation's shared gate over the organisation's toolbelt, and the
+publish machinery is the org's continuous archetype. That archetype is
+not wired yet: it lands with the base-image repin
+([#5](https://github.com/monumental-archive/monumental-archive-db/issues/5)),
+and **between the import and that pull request this repository publishes
+nothing**. Everything below that describes the publish path describes the
+archetype this repository calls, and is an argument about what will be
+published rather than about a pipeline running today. That is stated
+plainly rather than smoothed over: an assurance case that claims a
+running control it does not have is the defect it exists to prevent.
 
 The unusual thing about this project is that it contains no application
 code. It is an *assembly*: a Dockerfile, three extension pins, and a
@@ -30,11 +46,14 @@ Four distinct substitution points:
 4. *The published manifest.* An attacker with registry write could push a
    different image under our tag.
 
-**CI compromise.** The publish workflow can push to GHCR and holds a
-Sigstore OIDC identity. A workflow that can be induced to build something
-other than the reviewed tree, or to sign something it did not prove, is
-equivalent to registry compromise — and *more* dangerous, because the
-result would carry a valid signature.
+**CI compromise.** The publish path can push to GHCR, and somewhere in
+the organisation a Sigstore OIDC identity is held. A workflow that can be
+induced to build something other than the reviewed tree, or to sign
+something it did not prove, is equivalent to registry compromise — and
+*more* dangerous, because the result would carry a valid signature. The
+org's answer is the split: the job that runs this repository's tree can
+push, and the job that mints the identity is in a different repository
+and runs no caller-supplied code, so the two capabilities never meet.
 
 **Known-vulnerable OS packages.** PostGIS drags in the GDAL stack, and
 with it libraries (libexpat1, libnss3) with a steady CVE cadence. This is
@@ -85,9 +104,12 @@ trail without any error — a silent failure of a security control.
 - **The privilege boundary inside the image.** The server runs as `USER
   postgres`; there is no root phase and no setuid path to one, because
   `gosu` — whose only purpose is root→postgres descent — is deleted.
-- **The registry identity boundary.** Consumers distinguish our images from
-  anyone else's by cosign verification against this repository's publish
-  workflow, not by the tag.
+- **The registry identity boundary.** Consumers distinguish our images
+  from anyone else's by verifying the signature and the build provenance
+  the org signer minted for that digest, not by the tag. The identity
+  moved at the import — images published before the transfer were signed
+  by this repository's own publish workflow, which is a different
+  publisher and is recorded as such in the README.
 
 ## Secure design principles
 
@@ -103,41 +125,52 @@ trail without any error — a silent failure of a security control.
   resolving to something newer. The image starts non-root by default, and
   cannot be talked into root because the tool for it is gone.
 - **Complete mediation.** There is exactly one path by which an image is
-  produced and exactly one identity that can sign one. No manual publish
-  path exists, `task ci` in a shell and the CI gate run the same tasks in
-  the same order, and the publish workflow carries no cache of any kind so
-  there is no second, unreviewed source of layer content.
-- **Defence in depth on the extension pin, deliberately doubled.** The
-  digest proves the bytes did not change; the attestation check
-  ([scripts/check-edtf-attestation.sh](../scripts/check-edtf-attestation.sh))
-  proves the *same* digest carries GitHub-attested provenance naming edtf's
-  publish workflow — that they are the *right* bytes. Neither alone
-  suffices: a digest pins whatever it was first set to, including something
-  wrong; an attestation without a digest pin does not say which bytes ship.
+  produced and exactly one identity that can sign one — and that identity
+  lives in a repository of its own, the org signer, which holds
+  `id-token: write` and runs no caller-supplied code. No manual publish
+  path exists, `mise run ci` in a shell and the shared gate run the same
+  tasks from the same lockfile in the same order, and every signing path
+  builds cold: a cache is an unattested build input, so the org's
+  attested paths carry none.
+- **Defence in depth on the extension pin — currently single, not
+  doubled.** The digest proves the bytes did not change; an attestation
+  over that same digest would prove they are the *right* bytes. Neither
+  alone suffices: a digest pins whatever it was first set to, including
+  something wrong; an attestation without a digest pin does not say which
+  bytes ship. This repository's own attestation gate was deleted at the
+  import because a hand-rolled verifier beside the canonical one is a
+  second derivation, and the canon's base-approval walk is pgrx-scoped
+  and does not reach a first-party base in a sibling repository. That gap
+  is filed as `.github#715` and is named here rather than papered over:
+  until it lands, this leg of the argument rests on the digest pin and on
+  the publisher being the same organisation.
 - **Least privilege.** Workflows default to `contents: read`, with
-  additional scopes granted per job and annotated inline with why (`packages:
-  write` only on the pushing jobs, `id-token: write` only where Sigstore
-  needs it). Runners enforce `egress-policy: block` with allowlists derived
-  from audit runs rather than guessed. No long-lived registry or signing
-  credential exists to leak — GHCR uses the run's own token and signing is
-  keyless.
+  additional scopes granted per job and stated rather than inherited (a
+  nested `uses:` job takes its own file's default, never the caller's
+  grant). `id-token: write` is not held by any workflow here at all: the
+  organisation's capability boundary puts it in the signer repository,
+  which runs no caller-supplied code, so a build job that executes this
+  repository's tree can never mint an identity. Runner hardening was
+  retracted org-wide and is deliberately absent rather than missing. No
+  long-lived registry or signing credential exists to leak — GHCR uses
+  the run's own token and signing is keyless.
 
 ## Common implementation weaknesses, countered
 
 | Weakness class | Countermeasure | Evidence |
 | --- | --- | --- |
-| Memory safety, injection, logic defects in our own code | There is no application code. The only executable content authored here is two shell scripts, which handle no untrusted input. | [Dockerfile](../Dockerfile), [scripts/](../scripts/) |
-| Known-vulnerable OS packages | Own the installation, then rebuild on a clock: a weekly `--no-cache` rebuild re-resolves the unpinnable layer from `trixie-security`, capping exposure at seven days. | [0001](decisions/0001-own-the-installation.md), `.github/workflows/publish.yml` |
-| Known-vulnerable dependencies, undetected | trivy at all severities with `--ignore-unfixed`, over both the filesystem and the built image, on every pull request. Deliberately never fingerprinted — the vulnerability DB changes without commits, so a cached "unchanged inputs" skip would be a false pass. | `task scan`, `task scan:image`, [trivy.yaml](../trivy.yaml) |
-| Dependency drift and stale pins | Renovate, with the pin convention enforced by the `ARG *_VERSION=` + `# renovate:` pairing so a pin cannot silently lose coverage. | [renovate.json](../renovate.json) |
-| Supply-chain substitution | Digest pinning on both `FROM`s (fail-closed in BuildKit), the attestation gate on the extension image, and cosign keyless signing of the published manifest with the workflow as identity. | Dockerfile, `scripts/check-edtf-attestation.sh` |
-| Publishing something that was never proved | The publish invariant: build and smoke before any push; after the manifest exists, pull it back by digest and re-prove; sign last and only on proof; then verify as a consumer would. | `.github/workflows/publish.yml` |
-| A signature that succeeds but does not verify | The pipeline runs `cosign verify` against the exact identity consumers pin, immediately after signing. A signing step that exits 0 is not a signature that verifies. | `.github/workflows/publish.yml` |
+| Memory safety, injection, logic defects in our own code | There is no application code. The only executable content authored here is one shell script, which handles no untrusted input. | [Dockerfile](../Dockerfile), [scripts/](../scripts/) |
+| Known-vulnerable OS packages | Own the installation, then rebuild on a clock: a weekly cache-free rebuild re-resolves the unpinnable layer from `trixie-security`, capping exposure at seven days. | [0001](decisions/0001-own-the-installation.md), the continuous archetype's schedule leg (wired at [#5](https://github.com/monumental-archive/monumental-archive-db/issues/5)) |
+| Known-vulnerable dependencies, undetected | Decided at the publish path's commit point, never in the gate: an advisory in the artifact's SBOM blocks the publish until it carries a signed decision, and the published digest's package-CVE state is on every run log. A gate that fails on a CVE published overnight fails unrelated pull requests, so vulnerability scanning is deliberately out of it. | the org's dependency track; the canon's `lint:trivy` (misconfig + secrets only) |
+| Dependency drift and stale pins | Renovate under the org preset, with the pin convention enforced by the `ARG *_VERSION=` + `# renovate:` pairing so a pin cannot silently lose coverage. | [renovate.json](../renovate.json) |
+| Supply-chain substitution | Digest pinning on both `FROM`s (fail-closed in BuildKit) and keyless signing of the published index under the org signer's identity. The attestation gate over the extension base is the open leg — `.github#715`. | Dockerfile |
+| Publishing something that was never proved | The publish invariant, now the org's shared one: build and smoke before any push; after the index exists, pull it back by digest and re-prove; sign last and only on proof. | the org's `continuous.yml` → `build-oci-image.yml` → `assemble-oci-index.yml` → signer |
+| A signature that succeeds but does not verify | Signing is the org signer's, and the org verifies its own output as a stranger would rather than trusting a step's exit code. | the signer repository, and the org's verification path |
 | Silent loss of a security control | The smoke test asserts against `pg_get_loaded_modules()`, not `\dx`. `\dx` reports what is *installable*; only the former proves pgaudit is actually loaded. | [scripts/db-image-smoke.sh](../scripts/db-image-smoke.sh) |
-| Vulnerable or malformed CI workflows | actionlint plus zizmor at `--persona=pedantic` on every commit and in CI; the six online audits (typosquat, impostor-commit, stale refs) run weekly. CodeQL analyses the workflows as its `actions` language. | `.github/workflows/` |
+| Vulnerable or malformed CI workflows | actionlint and zizmor from the belt on every commit and in the shared gate, plus the belt's structural workflow lints (SHA-pinned `uses:`, stated nested permissions, no cache on an attested path, the capability boundary); the online audits run on the Monday cron. SAST is the org security configuration's default CodeQL setup, not a workflow here. | `mise run ci`, `.github/workflows/audit.yml` |
 | Unpinned CI actions | Every `uses:` is pinned to a full commit SHA with the version in a trailing comment. | `.github/workflows/` |
-| Credential leakage | gitleaks runs on every commit and over full history in CI; `persist-credentials: false` on every checkout; no long-lived publishing secret exists. | `task scan:secrets`, lefthook |
-| Dockerfile antipatterns | hadolint on every commit and in CI. | [.hadolint.yaml](../.hadolint.yaml) |
+| Credential leakage | gitleaks over tracked files in the gate; `persist-credentials: false` on every checkout; no long-lived publishing secret exists. | `mise run lint:gitleaks` |
+| Dockerfile antipatterns | hadolint from the belt in the gate, at the org's configuration rather than a repo-local copy of it. | `mise run lint:hadolint` |
 
 ## Why this is believed sufficient
 
@@ -159,9 +192,9 @@ The residual risks, named honestly:
 - **Three Scorecard checks and the Best Practices gold badge are
   structurally unreachable** for a single maintainer: Code-Review,
   Contributors, and non-author review. These are head-count facts, not
-  hygiene gaps. The mitigation is [GOVERNANCE.md](../GOVERNANCE.md)'s
-  access-continuity section rather than a pretence that a second reviewer
-  exists.
+  hygiene gaps. The mitigation is the organisation's
+  [governance](https://github.com/monumental-archive/.github/blob/main/GOVERNANCE.md)
+  rather than a pretence that a second reviewer exists.
 
 Both residual risks fail toward *detectability* rather than silence, which
 is the property the design is actually organised around. A substituted
@@ -170,5 +203,5 @@ the build. A signature over unproved bytes cannot be produced, because
 signing happens after the re-proof step and nowhere else. An unloaded
 pgaudit fails the smoke test rather than producing a database that quietly
 audits nothing. The one thing this design consciously accepts — a
-vulnerable OS package during the rebuild window — is public in the trivy
-output of every run, rather than hidden.
+vulnerable OS package during the rebuild window — is public in the
+package-CVE report of every publish run, rather than hidden.

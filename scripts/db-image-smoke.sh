@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: 2026 Carl Allen
-# SPDX-License-Identifier: AGPL-3.0-only
-
 # Smoke-test a built database image before it is published.
 # Usage: scripts/db-image-smoke.sh <image-ref>
 #
@@ -57,8 +54,9 @@ assert() {
   fi
 }
 
-# Non-root. The image sets USER postgres; a root server would mean the
-# official entrypoint took its privileged path after all.
+# Non-root. The image sets USER 999 (the postgres user, by uid); a root
+# server would mean the official entrypoint took its privileged path
+# after all.
 uid=$(docker exec "${container}" id -u)
 if [[ ${uid} -eq 0 ]]; then
   echo "db-smoke: FAIL — server runs as root" >&2

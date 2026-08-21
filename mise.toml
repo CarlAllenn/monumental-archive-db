@@ -1,65 +1,20 @@
-# Settings block: canonical baseline from CarlAllenn/renovate-config
-# templates/mise/settings.toml — drift-audited, do not edit locally.
-min_version = "2026.7.12"
-
+# Repo-specific tools and tasks only; the org belt arrives globally
+# (mise/config.toml in monumental-archive/.github, delivered at the SHA
+# the gate stub pins). This repository has neither, deliberately:
+#
+#   - Every tool the old Taskfile ran — hadolint, trivy, shellcheck,
+#     shfmt, actionlint, zizmor, gitleaks, yamllint, taplo, typos,
+#     rumdl, editorconfig-checker, reuse — is a belt tool now, so a
+#     pin here would be a second version of a tool the belt already
+#     resolves and locks.
+#   - The image build and its smoke test are the continuous
+#     archetype's, not the gate's: they run in the publish path
+#     (.github/workflows/continuous.yml) over the bytes that get
+#     signed, never over a local twin the gate would throw away.
+#
+# If a task is ever added here it must carry a shell pin beside it —
+# `[task_config] shell = "bash -euo pipefail -c"` — because mise's
+# default inline shell is `sh -c -o errexit`, which has neither
+# pipefail nor nounset (.github#700).
 [settings]
-lockfile = true                 # mise.lock records resolved versions + checksums
-pin = true                      # `mise use` writes exact versions, never ranges
-activate_aggressive = true      # tool bin-paths go to FRONT of PATH (system tools can never shadow pins)
-locked_verify_provenance = true # re-verify provenance on install even when the lockfile has entries
-# Strict mode: install only from pre-resolved lockfile URLs — no registry/API
-# resolution, and ad-hoc `mise x tool@ver` installs of unpinned tools fail
-# (mechanical no-ad-hoc enforcement).
-locked = true
-# Never install a release younger than 7 days — the same number as the
-# Renovate minimumReleaseAge gate (shared policy, renovate-config).
-minimum_release_age = "168h"
-# Precompiled ruby default, set explicitly per the canonical settings block
-# (lockfile entries match on `options` exactly; the 2026.8.0 default flip
-# must arrive with a reviewed lockfile). No ruby is pinned here; inert.
-ruby.compile = false
-# Dev Mac + CI runners; the default would also lock musl/windows we never target.
-lockfile_platforms = ["macos-arm64", "linux-x64", "linux-arm64"]
-# asdf plugins are legacy (single-maintainer bash, no checksums); ubi is
-# deprecated upstream in favor of github:.
-disable_backends = ["asdf", "ubi"]
-
-# Bootstrap guarantee: a fresh clone gets its git hooks installed by the
-# standard `mise install`; without this, .git/hooks/ is empty and the whole
-# enforcement layer silently doesn't exist. Idempotent; lefthook auto-resyncs
-# hooks on every run thereafter. CI-guarded: git hooks are meaningless in CI,
-# and installing them there fetches the remote config into .git/, which
-# whole-repo scanners must then be excluded from.
-[hooks]
-postinstall = 'test -n "${CI:-}" || lefthook install'
-
-[tools]
-task = "3.52.0"
-
-# Enforcement layer
-lefthook = "2.1.10"
-hadolint = "2.14.0"
-shellcheck = "0.11.0"
-shfmt = "3.13.1"
-actionlint = "1.7.12"
-# GitHub Actions security audit
-"aqua:zizmorcore/zizmor" = "1.28.0"
-trivy = "0.72.0"
-# signs the published manifest (publish.yml)
-cosign = "3.1.2"
-# GitHub attestation verification for the prebuilt edtf-postgres artifacts
-# (task scan:edtf). Pinned like everything else so the gate is identical
-# locally and in CI rather than relying on the runner's preinstalled gh.
-gh = "2.96.0"
-# secret scan: staged (universal hook) + CI history job
-gitleaks = "8.30.1"
-# link check, weekly scheduled.yml only
-lychee = "0.24.2"
-uv = "0.11.31"
-yamllint = "1.38.0"
-taplo = "0.10.0"
-"pipx:codespell" = "2.4.3"
-# runtime for markdownlint-cli2
-node = "26.5.0"
-"npm:markdownlint-cli2" = "0.23.1"
-editorconfig-checker = "3.8.0"
+lockfile = true
