@@ -1,160 +1,41 @@
+# The org gate. This stub is a repo's entire CI obligation: everything else
+# (linters, versions, enforcement) arrives via the shared workflow and the
+# toolbelt it pins. Update the SHA when moving to a newer gate; once the
+# .github repo cuts releases, Renovate manages this pin like any other.
 ---
-# The gate. `task ci` is the whole contract — identical locally and here:
-# every linter, the fs scan, the edtf attestation check, then build the
-# candidate image natively, smoke it, and trivy-gate it. The image gate
-# lives HERE, on pull requests, never on the publish path (canon:
-# renovate-config templates/trivy) — a CVE published tomorrow must not
-# retroactively kill a publish, and a publish must not die because a
-# scanner had a bad day.
-#
-# Deliberately cache-free: no buildx layer cache (the uncached build is a
-# single apt install plus two 3MB fetches) and no trivy DB cache (canon:
-# the DB is stale after 6h, so caching it guarantees misses).
-name: ci
+name: gate
 
 "on":
+  # `edited` is load-bearing: the shared gate lints the squash subject
+  # from the PR title, and title/base changes arrive only as `edited`
+  # events — without it a fixed title stays red and a broken one stays
+  # green (.github#427). Do not slim back to the default types.
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
   push:
-    # renovate/**: branch-automerge needs the ci check on the branch itself
-    # (no PR is opened unless the branch goes red).
-    branches: [main, renovate/**]
-  pull_request: {}
-  schedule:
-    # Weekly full gate on main: the scan family (trivy, gh attestation) has
-    # inputs — the vulnerability database, the advisory state — that change
-    # without commits; this catches new CVEs during quiet weeks. Offset
-    # from publish.yml (09:00) so the runs don't contend.
-    - cron: 0 6 * * 1
-  # Manual kick: gate validation, post-fix re-runs.
-  workflow_dispatch: {}
+    branches:
+      - main
 
 permissions:
   contents: read
 
-# Keyed on the COMMIT, not the ref: a renovate/** push and its
-# pull_request run are different refs but the same commit; a ref-keyed
-# group would let one push start two full runs.
 concurrency:
-  group: ci-${{ github.event.pull_request.head.sha || github.sha }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   ci:
-    name: ci
-    # Skip on push to main: this exact content just went green on the PR.
-    # Still runs on pull_request (the required check), on renovate/**
-    # pushes (branch-automerge), on schedule, and on dispatch.
-    if: github.event_name != 'push' || github.ref != 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      # First step of every job, before checkout: runtime egress
-      # enforcement. Cold-cache mise set + the image build's apt/registry
-      # endpoints + trivy's DB mirror + edtf release assets.
-      - uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: block
-          disable-sudo: true
-          # apt is fetched over plain http (port 80) by the PGDG and Debian
-          # repositories; ghcr.io + pkg-containers (its blob CDN, which the
-          # registry 307s to) serve the edtf-postgres build stage — this job
-          # pushes nothing, so it reached GHCR for the first time when that
-          # stage replaced the release tarball. buildkit's network namespace
-          # may not be governed by harden-runner at all — allowlisted anyway
-          # rather than relying on that being true.
-          # Unioned with iiif-server's v0.1.0 audit-derived list (its #69):
-          # both Docker Hub CDN legs, and tmaproduction.blob.core.windows.net
-          # (serves the bundles `gh attestation verify` fetches — scan:edtf).
-          # Per that issue's rule: do not prune by inspection; re-derive from
-          # an audit run or leave it alone.
-          allowed-endpoints: >
-            api.github.com:443
-            apt.postgresql.org:80
-            apt.postgresql.org:443
-            auth.docker.io:443
-            codeload.github.com:443
-            deb.debian.org:80
-            deb.debian.org:443
-            files.pythonhosted.org:443
-            ghcr.io:443
-            github.com:443
-            mirror.gcr.io:443
-            mise-versions.jdx.dev:443
-            mise.jdx.dev:443
-            nodejs.org:443
-            objects.githubusercontent.com:443
-            pkg-containers.githubusercontent.com:443
-            production.cloudflare.docker.com:443
-            production.cloudfront.docker.com:443
-            pypi.org:443
-            raw.githubusercontent.com:443
-            registry-1.docker.io:443
-            registry.npmjs.org:443
-            release-assets.githubusercontent.com:443
-            tmaproduction.blob.core.windows.net:443
-            tuf-repo-cdn.sigstore.dev:443
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          # Full history: the gitleaks history scan reads every commit, not
-          # a shallow tip.
-          fetch-depth: 0
-          persist-credentials: false
-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
-        with:
-          # renovate: datasource=github-releases depName=jdx/mise
-          version: 2026.7.12
-
-      # go-task fingerprints (Taskfile `sources:`): a hit means a gate's
-      # inputs are byte-identical to a run that already passed, so it
-      # skips. go-task only writes checksums after a task succeeds, and
-      # actions/cache only saves on green jobs, so a failing gate can
-      # never be cached green.
-      - name: Cache task fingerprints
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .task
-          key: task-fingerprints-${{ github.sha }}
-          restore-keys: task-fingerprints-
-
-      - name: Gitleaks history scan
-        run: task scan:secrets
-
-      - run: task ci
-        env:
-          # task scan:edtf calls `gh attestation verify`, which needs a
-          # token even for a public repo.
-          GH_TOKEN: ${{ github.token }}
-
-  reuse:
-    name: REUSE compliance
-    # Same guard and same reason as the ci job above.
-    if: github.event_name != 'push' || github.ref != 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      # Allowlist inherited from iiif-server, which runs this identical
-      # action-and-endpoint set green: the docker.io hosts are the action's
-      # own image pull, and Docker Hub picks between its cloudflare and
-      # cloudfront blob legs per request (same lore as publish.yml).
-      - uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: block
-          disable-sudo: true
-          allowed-endpoints: >
-            api.github.com:443
-            auth.docker.io:443
-            github.com:443
-            production.cloudflare.docker.com:443
-            production.cloudfront.docker.com:443
-            registry-1.docker.io:443
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-
-      # Every file carries SPDX licensing information: the Dockerfile and
-      # the two shell scripts via in-file headers, everything else via
-      # REUSE.toml's blanket annotation. Its own job rather than a `task
-      # lint` entry because the fsfe action is one docker pull with no
-      # toolchain to pin. Without this the badge would go red silently the
-      # first time a file landed uncovered.
-      - uses: fsfe/reuse-action@676e2d560c9a403aa252096d99fcab3e1132b0f5 # v6.0.0
+    permissions:
+      # Stated, not inherited: a `uses:` job takes the WORKFLOW-level
+      # default, never the caller's ambient grant, so a shared workflow
+      # that gains a permission kills silent callers as startup_failure
+      # (the gate.yml convention; lint:nested-permissions enforces it —
+      # measured on stele's standup, where this template's silence was
+      # the one gate finding).
+      contents: read # checkout of this repo and of the toolbelt
+    uses: monumental-archive/.github/.github/workflows/ci.yml@1a298f20d30db36f6c67d155bf36991c9259bbad # v1.53.0
+...

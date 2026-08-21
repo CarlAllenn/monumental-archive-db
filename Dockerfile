@@ -1,6 +1,3 @@
-# SPDX-FileCopyrightText: 2026 Carl Allen
-# SPDX-License-Identifier: AGPL-3.0-only
-
 # The Monumental Archive's database image: official Postgres plus audited
 # extensions (PostGIS, pgaudit, edtf_postgres). Renovate manages the FROM
 # digest. Base is Debian 13 (trixie).
@@ -38,10 +35,21 @@ FROM postgres:18-trixie@sha256:3a82e1f56c8f0f5616a11103ac3d47e632c3938698946a7ad
 # used to provide now holds by construction. BuildKit is fail-closed on
 # mismatch, and Renovate's native Dockerfile manager bumps tag and digest
 # together — the checksums this replaced had to be hand-edited.
-# scripts/check-edtf-attestation.sh proves in CI that this digest carries
-# GitHub-attested provenance naming edtf's own publish workflow. Both facts
-# are needed: the digest proves the bytes did not change, the attestation
-# proves they are the right bytes.
+# The digest proves the bytes did not change; proving they are the RIGHT
+# bytes — an attestation over this exact digest naming edtf's publish
+# workflow at the ref that could legitimately have minted it — is the
+# canon's base-approval machinery, not this repository's. The hand-rolled
+# gate that used to do it here was deleted at the import (.github#670): a
+# second derivation beside the canonical one passes its own exam. The
+# canon's approval walk is pgrx-scoped today and does not reach a
+# first-party base in a sibling repo, which is filed as .github#715 and is
+# the gate this line answers to once it lands.
+#
+# THIS REF IS THE ONE KNOWN LEFTOVER OF THE IMPORT (2026-08-21). It still
+# names the pre-transfer publisher because an image published before the
+# transfer cannot carry an org-identity attestation at all; it is repinned
+# to ghcr.io/monumental-archive/edtf-postgres, at the digest of edtf's
+# first org-path release, in this repo's follow-up PR (#5, .github#669).
 FROM ghcr.io/carlallenn/edtf-postgres:1.2.3-pg18@sha256:4ee81e447e122deeb6c7361ad48d33a518a630d116318e6816f286b06c33b0e8 AS edtf
 
 # --- runtime ---------------------------------------------------------------
@@ -55,9 +63,16 @@ FROM base
 # `# renovate:` comments above `ARG *_VERSION=` and nothing else, so a pin
 # written inline would be tracked by nothing. PostGIS is the most important
 # package in the image; its version must never lose Renovate coverage.
-# renovate: datasource=deb depName=postgresql-18-postgis-3
+#
+# depName and packageName are both stated, and they differ on purpose:
+# packageName is what the deb datasource looks up, depName is the display
+# name the org's commit-subject template interpolates. The full package
+# name mints an 81-column subject, nine past the org ceiling, and a
+# machine-minted subject cannot be shortened after the fact — so the
+# short name is declared here, where the pin is (renovate.json).
+# renovate: datasource=deb depName=postgis packageName=postgresql-18-postgis-3
 ARG POSTGIS_VERSION=3.6.4+dfsg-2.pgdg13+1
-# renovate: datasource=deb depName=postgresql-18-pgaudit
+# renovate: datasource=deb depName=pgaudit packageName=postgresql-18-pgaudit
 ARG PGAUDIT_VERSION=18.0-3.pgdg13+1
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -92,7 +107,19 @@ CMD ["postgres", \
 
 # Non-root by default; the official entrypoint supports starting as the
 # postgres user directly (it skips its root-phase chown dance).
-USER postgres
+#
+# NUMERIC, not `postgres`: an orchestrator enforcing runAsNonRoot cannot
+# verify a named user and refuses to start the pod, which is what
+# hadolint DL3066 is about — the belt runs hadolint at its maximum and
+# this repo takes the fix rather than an exception. 999 is not a guess:
+# `docker run --entrypoint id <the pinned base digest> postgres` reads
+# uid=999(postgres) gid=999(postgres) groups=999(postgres),101(ssl-cert),
+# and starting the image by uid rather than by name was measured to
+# produce the identical group set, ssl-cert included (2026-08-21). The
+# coupling to the base's assignment is real and is bounded by the smoke
+# test: a uid that upstream moved would fail to start the server, and
+# nothing publishes without booting first.
+USER 999
 
 HEALTHCHECK --interval=5s --timeout=3s --retries=10 \
   CMD ["pg_isready", "-U", "postgres"]

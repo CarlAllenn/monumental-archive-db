@@ -1,8 +1,9 @@
 # Roadmap
 
 What this project intends to do — and deliberately not do — over roughly
-the next year (written 2026-08-09). A roadmap is a statement of direction,
-not a promise; when it changes, this file changes with it.
+the next year (written 2026-08-09; revised 2026-08-21 at the import into
+`monumental-archive`). A roadmap is a statement of direction, not a
+promise; when it changes, this file changes with it.
 
 This repository is closer to "finished" than most. It publishes one image
 with a deliberately fixed surface, so the honest roadmap is mostly about
@@ -14,24 +15,31 @@ with a deliberately fixed surface, so the honest roadmap is mostly about
   the product's central safety property: it caps exposure on the
   unpinnable OS layer at seven days
   ([0001](decisions/0001-own-the-installation.md)). Work that defends it —
-  keeping the scheduled workflow green, keeping egress allowlists derived
-  rather than guessed, keeping the trivy gate on pull requests and off the
-  publish path — takes priority over anything additive.
+  keeping the scheduled publish green and keeping every pin under Renovate
+  coverage — takes priority over anything additive. Two mechanisms that
+  used to be this repo's are the org's now: the rebuild schedule rides the
+  continuous archetype, and vulnerability scanning is decided at the
+  publish path's commit point rather than on pull requests (a new CVE must
+  not fail an unrelated pull request; the canon's `lint:trivy` states the
+  rule).
 - **Track the postgres major.** PostgreSQL 19 is the next real change to
   this image. The bump is gated on all three extensions being available for
   it from PGDG and on `edtf_postgres` publishing a `-pg19` image; it will
   land as a deliberate change with the decision recorded, not as a Renovate
   automerge.
 - **Shrink the edtf build stage** once
-  [CarlAllenn/edtf#144](https://github.com/CarlAllenn/edtf/issues/144)
-  lands a minimal artifact image ([#5](https://github.com/CarlAllenn/monumental-archive-db/issues/5)).
+  [edtf#144](https://github.com/monumental-archive/edtf/issues/144)
+  lands a minimal artifact image
+  ([#5](https://github.com/monumental-archive/monumental-archive-db/issues/5),
+  which is also the repin onto the org-path image).
   The current build stage is postgres-plus-extension when all we copy out
   is a handful of `edtf_postgres*` files.
-- **Finish the supply-chain scoring work**
-  ([#2](https://github.com/CarlAllenn/monumental-archive-db/issues/2)):
-  OpenSSF Scorecard published, Best Practices at silver, REUSE compliance.
-  Structurally unreachable checks are documented as such rather than
-  chased.
+- **Finish the supply-chain scoring work.** The org's now, not this
+  repo's: Scorecard runs from the canon's stub against a per-repo
+  ratcheted floor in `security/scorecard-floors.txt`, REUSE compliance is
+  machine-checked by the belt's `lint:reuse`, and the README badge block
+  becomes a derivation rather than hand-written markup. Structurally
+  unreachable checks are documented as such rather than chased.
 - **Keep the docs honest about digests.** Every document here that names a
   digest or a version is a thing that can rot without failing anything.
 
@@ -48,9 +56,11 @@ contribution door open without inviting scope creep.
   under the Renovate convention, and asserted in the smoke test.
 - **No version tags, no releases.** This image has no version surface of
   its own; its "version" is the postgres major plus three extension pins.
-  Consumers pin digests and Renovate resolves against `:main`. Inventing
-  releases so that a scoring check has something to read would be
-  ceremony that makes the artifact worse.
+  Consumers pin digests and Renovate resolves against the stream tag.
+  Inventing releases so that a scoring check has something to read would
+  be ceremony that makes the artifact worse. This is what the org's
+  continuous archetype exists for, and this repository is its first
+  member.
 - **No application code, no migrations, no seed data.**
   `/docker-entrypoint-initdb.d` stays empty: the consuming archive is
   migration-defined, and an image that initialises schema is an image that

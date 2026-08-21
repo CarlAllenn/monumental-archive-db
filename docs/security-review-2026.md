@@ -12,17 +12,37 @@ wrong.
 - **Commit reviewed:** `8f4b0fe`
 - **Previous review:** none — this is the first
 
+> **Editor's note, 2026-08-21.** This repository joined
+> `monumental-archive` on this date (`.github#670`) and several things
+> this review reads are gone: the repo's own `publish.yml`, `ci.yml`,
+> `scheduled.yml` and `codeql.yml`, its linter configs, its
+> `SECURITY.md`/`GOVERNANCE.md` (the organisation serves those as
+> defaults now), and `scripts/check-edtf-attestation.sh` — whose job is
+> the canon's base-approval machinery, with the part that does not yet
+> reach a first-party base filed as `.github#715`. The findings below
+> are left exactly as they were written: a dated review is a record of
+> what one pass saw on one day, and editing it to match a later tree
+> would destroy the only thing it is good for. Links that pointed at
+> deleted files now point at the organisation's copies; nothing else
+> changed. F-1 was fixed before the import (commit `67193f9`, which
+> anchored the gate to the release tag) and its mechanism has since
+> moved upward; F-3 is closed with the import — the harden-runner
+> allowlists it was about went with the workflows, the org having
+> retracted runner hardening.
+
 ## Scope
 
 The security requirements under review are the ones stated in
-[SECURITY.md](../SECURITY.md), and the boundary is the one drawn in
+[SECURITY.md](https://github.com/monumental-archive/.github/blob/main/SECURITY.md)
+(this repository's own copy at the time; the organisation's is the one
+served now), and the boundary is the one drawn in
 [the assurance case](assurance-case.md#trust-boundaries). Concretely, this
 pass covered:
 
 - [`Dockerfile`](../Dockerfile) — what is installed, what is removed, what
   crosses the build-stage boundary, and the baked `CMD`.
-- [`scripts/check-edtf-attestation.sh`](../scripts/check-edtf-attestation.sh)
-  — the upstream supply-chain gate.
+- `scripts/check-edtf-attestation.sh` — the upstream supply-chain gate
+  (deleted 2026-08-21; see the editor's note).
 - [`scripts/db-image-smoke.sh`](../scripts/db-image-smoke.sh) — the test
   that a security control (pgaudit) is actually loaded.
 - `.github/workflows/publish.yml` — the publish ordering invariant, the
@@ -92,9 +112,9 @@ still passes against the real attestation and still fails closed.
 
 ### F-2 — The seven-day remediation claim is broader than the mechanism (low)
 
-[SECURITY.md](../SECURITY.md) states that worst-case exposure on an
-OS-layer CVE is seven days, on the strength of the weekly cache-free
-rebuild. Tracing the mechanism:
+`SECURITY.md` (this repository's own, at the time) states that
+worst-case exposure on an OS-layer CVE is seven days, on the strength of
+the weekly cache-free rebuild. Tracing the mechanism:
 
 - `publish.yml` sets `no-cache: ${{ github.event_name == 'schedule' }}`, so
   the weekly run does rebuild every layer it builds.
@@ -135,10 +155,12 @@ confidential behind it. It is nonetheless the opposite of the stated
 principle that allowlists are "derived from audit runs rather than
 guessed."
 
-**Disposition:** already tracked as
-[#12](https://github.com/CarlAllenn/monumental-archive-db/issues/12), with
-the correct rule recorded there — re-derive from a live run; do not prune
-by inspection.
+**Disposition:** was tracked as
+[#12](https://github.com/monumental-archive/monumental-archive-db/issues/12),
+with the correct rule recorded there — re-derive from a live run; do not
+prune by inspection. Closed at the import: the workflows those allowlists
+lived in are deleted and the organisation retracted runner hardening
+org-wide (`docs/release.md`).
 
 ### F-4 — apt traffic is authenticated but not encrypted (informational, accepted)
 
@@ -204,9 +226,9 @@ this review rather than newly discovered:
 - A window on OS-layer CVEs, whose length differs by layer — see F-2.
 - Three OpenSSF Best Practices criteria and three Scorecard checks are
   structurally unreachable for a single maintainer. These are head-count
-  facts; the mitigation is
-  [GOVERNANCE.md](../GOVERNANCE.md#access-continuity), not a pretence that
-  a second reviewer exists.
+  facts; the mitigation is the organisation's
+  [governance](https://github.com/monumental-archive/.github/blob/main/GOVERNANCE.md),
+  not a pretence that a second reviewer exists.
 
 ## Next review
 

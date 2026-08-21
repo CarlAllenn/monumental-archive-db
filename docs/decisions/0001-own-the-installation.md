@@ -1,4 +1,4 @@
-# 0001 — Own the installation: install what CVEs live in, keep the pins, rebuild on a clock
+# 0001 — Own the installation, and rebuild on a clock
 
 Status: accepted. Inherited from the Monumental Archive's decision record
 of 2026-08-01, restated here standalone when the image moved into its own
@@ -42,16 +42,23 @@ Three rules follow, and they are the reusable part:
 2. **Pins stay; the un-pinnable layer is bounded by time, not by
    floating.** Named packages are pinned exactly. Their transitive
    dependencies cannot be pinned by anyone — so exposure there is capped
-   by a scheduled `--no-cache` rebuild (weekly, `publish.yml`), which
-   resolves them fresh from `trixie-security` with every deliberate pin
-   intact. Under a community base a rebuild refreshed nothing; under this
+   by a scheduled rebuild that runs weekly and carries no cache of any
+   kind, which resolves them fresh from `trixie-security` with every
+   deliberate pin intact. The mechanism moved at the 2026-08-21 import:
+   the repo's own `publish.yml` is gone and the schedule is the org
+   continuous archetype's, wired in
+   [#5](https://github.com/monumental-archive/monumental-archive-db/issues/5).
+   Under a community base a rebuild refreshed nothing; under this
    arrangement it is a real remediation.
 3. **A digest proves the bytes did not change; an attestation proves they
-   are the right bytes.** edtf-postgres is pinned by digest *and* verified
-   against the publisher's attestation (`scripts/check-edtf-attestation.sh`),
-   and CI asserts the attestation covers the pinned digest. A digest alone
-   is a fail-closed check on the wrong question: an edit changing the
-   reference and its digest together satisfies it.
+   are the right bytes.** A digest alone is a fail-closed check on the
+   wrong question: an edit changing the reference and its digest together
+   satisfies it. The rule is unchanged by the import; its mechanism
+   moved. This repo's own attestation gate was deleted on 2026-08-21
+   because a hand-rolled verifier beside the canonical one is a second
+   derivation (`.github#670`), and the canon's base-approval walk does
+   not yet reach a first-party base in a sibling repository — filed as
+   `.github#715`, which is what this rule now waits on.
 
 Publishing follows from the same posture: each architecture is built on
 its own hardware (no QEMU), boots and proves its extensions load before
@@ -75,8 +82,8 @@ Official Images rebuilding — but only for what the base itself bakes in;
 the `libexpat1`/`libnss3` class is no longer in that set. Building from
 bare `debian:trixie` instead would mean owning the official entrypoint's
 initdb, `PGDATA`, password bootstrap, locale and signal handling —
-including the root→postgres drop `USER postgres` relies on. That trade is
-not worth making.
+including the root→postgres drop the image's non-root `USER` relies on.
+That trade is not worth making.
 
 **Revisit triggers.** Docker Official Images beginning to publish
 signatures. A second database image appearing in this family, at which
